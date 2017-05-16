@@ -37,6 +37,7 @@ class Base():
         plt.plot(xs,(ys+ys_probs),alpha=alp,color=col)
         return (ys+ys_probs)
 
+
     def bisection(self, bisection_fn, a=1e-6, b=2000):
         n=1
         while n<10000:
@@ -48,5 +49,3 @@ class Base():
                 a=c
             else:
                 b=c
-
-

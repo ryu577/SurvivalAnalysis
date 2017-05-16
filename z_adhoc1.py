@@ -95,6 +95,7 @@ if __name__ == '__main__':
 	ll.beta = 3.7150498
 	ll.params = np.array([256.37343165, 3.7150498])
 
+
 def extract_durations(data):
 	durtns = data.ix[:,2]
 	states = data.ix[:,3]
@@ -105,7 +106,7 @@ def extract_durations(data):
 	return [t,x]
 
 def plot_all():
-	data = pd.read_csv("C:\\Users\\rohit\\OneDrive\\NodeStateTransitions\\Data\\nst.csv", sep = '\t')
+	data = pd.read_csv("F:\data\cosmosTest\\v8_backup\\nst.csv", sep = '\t')
 	## Need to read as tab saperated and account for lack of headers.
 	l = Lomax()
 	w = Weibull()
@@ -128,15 +129,15 @@ def plot_all():
 				l.newtonRh()
 				w.newtonRh()
 				ln.gradient_descent()
-				ll.newtonRh(numIter = 3001)
+				ll.gradient_descent(numIter = 3001)
 				plt = plt_organic_data(t,x,w,l,ln,ll)
-				plt.savefig("C:\\Users\\rohit\\Documents\\GitHub\\SurvivalAnalysis\\Plots\\Clusters\\" + i + ".png")
+				plt.savefig("E:\\git\\SurvivalAnalysis\\Plots\\Clusters\\" + i + ".png")
 				plt.close()
 				rebootCost = 300.0
 				plt = plt_haz_rates(w,l,ln,ll,rebootCost)
 				nonParametric = non_parametric(w) * 60.0
 				plt.axvline(nonParametric, color = "blue")
-				plt.savefig("C:\\Users\\rohit\\Documents\\GitHub\\SurvivalAnalysis\\Plots\\HazRates\\" + i + ".png")
+				plt.savefig("E:\\git\\SurvivalAnalysis\\Plots\\HazRates\\" + i + ".png")
 				plt.close()
 			except:
 				continue
