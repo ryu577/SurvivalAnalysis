@@ -72,14 +72,15 @@ class Loglogistic(Base):
         hess = np.zeros([2,2])
         hess[0,0] = delksq
         hess[1,1] = dellmbsq
-        hess[0,1] = hess[1,0] = dellmbk
+        hess[0,1] = dellmbk
+        hess[1,0] = dellmbk
         return hess
 
     def hessian(self,t,x,k=0.5,lmb=0.3):
-        return self.numerical_hessian(t,x,k=0.5,lmb=0.3)
+        return self.numerical_hessian(t,x,k,lmb)
 
     def newtonRh(self,numIter=21, params = np.array([.1,.1])):
-        steps = {1.0:0, 2.0:0, 2.5:0, 3.0:0, 3.5:0, 3.7:0, 4.0:0, 4.5:0, 4.7:0, 5.5:0, 6.0:0, 6.5:0, 7.0:0, 7.5:0, 8.0:0, 8.5:0, 9.0:0, 9.5:0, 10.0:0, 12.0:0, 15.0:0, 20.0:0, 25.0:0, 27.0:0, 35.0:0, 37.0:0, 40.0:0, 50.0:0,100.0:0,200.0:0,500.0:0,1000.0:0}
+        steps = {0.01:0, 0.1:0, 0.5:0, 1.0:0, 2.0:0, 2.5:0, 3.0:0, 3.5:0, 3.7:0, 4.0:0, 4.5:0, 4.7:0, 5.5:0, 6.0:0, 6.5:0, 7.0:0, 7.5:0, 8.0:0, 8.5:0, 9.0:0, 9.5:0, 10.0:0, 12.0:0, 15.0:0, 20.0:0, 25.0:0, 27.0:0, 35.0:0, 37.0:0, 40.0:0, 50.0:0,100.0:0,200.0:0,500.0:0,1000.0:0}
         for i in xrange(numIter):
             directn = self.grad(self.train_org,self.train_inorg,params[0],params[1])
             if sum(abs(directn)) < 1e-5:
@@ -90,7 +91,7 @@ class Loglogistic(Base):
                 return params
             lik = self.loglik(self.train_org,self.train_inorg,params[0],params[1])
             step = np.linalg.solve(self.hessian(self.train_org,self.train_inorg,params[0],params[1]),directn)
-            params2 = params - step
+            params2 = params - 1e-6 * step
             for alp1 in steps.keys():
                 params1 = params - alp1 * step
                 if max(params1) > 0:

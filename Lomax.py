@@ -111,6 +111,12 @@ class Lomax():
         self.params = params
         return params
 
+    def expectedDT(self,tau,k,lmb,C_int):
+        return 1/lmb/(k-1) - (1/lmb/(k-1) + tau*k/(k-1))*1/(1+lmb*tau)**k + (tau + C_int)*1/(1+lmb*tau)**k
+
+    def expectedT(self,tau,k,lmb):
+        return (1/lmb/(k-1) - (1/lmb/(k-1) + tau*k/(k-1))*1/(1+lmb*tau)**k)/(1-1/(1+lmb*tau)**k)
+
     def samples(self, k, lmb, size = 1000):
         return lomax.rvs(c=k, scale=(1 / lmb),size=size)
 
