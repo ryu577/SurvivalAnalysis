@@ -96,6 +96,7 @@ class Lomax():
             if min(params) < 0:
                 print "Drastic measures"
                 params = params + step # undo the effect of taking the step.
+                params2 = params
                 for alp1 in [1e-8,1e-7,1e-5,1e-3,1e-2,.1,.5,1.0]:
                     params1 = params - alp1 * step
                     if(max(params1) > 0):

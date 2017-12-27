@@ -23,7 +23,7 @@ class Lognormal(Base):
         return 1 - self.cdf(t,mu,sigma)
 
     def logpdf(self,t,mu,sigma):
-        return -np.log(2*np.pi)/2 - np.log(sigma) - np.log(t) - ( (np.log(t) - mu)**2/(2*sigma**2) )
+        return -np.log(2*np.pi)/2 - np.log(sigma) - np.log(t) - ( (np.log(t) - mu)**2/(2*sigma**2))
 
     def logsurvival(self,t,mu,sigma):
         return np.log(self.survival(t,mu,sigma))
@@ -36,7 +36,7 @@ class Lognormal(Base):
         m = len(x)
         z = (np.log(x) - mu)/sigma
         delmu = sum(np.log(t) - mu)/sigma**2 + sum(norm.pdf(z) / norm.cdf(-z)) / sigma
-        delsigma = -n/sigma + sum((np.log(t)-mu)**2)/sigma**3 + sum( z*norm.pdf(z)/norm.cdf(-z) ) / sigma
+        delsigma = -n*1.0/sigma + sum((np.log(t)-mu)**2)/sigma**3 + sum( z*norm.pdf(z)/norm.cdf(-z) ) / sigma
         return np.array([delmu,delsigma])
 
     def numerical_grad(self,t,x,mu,sigma):
@@ -65,6 +65,5 @@ class Lognormal(Base):
         [self.mu,self.sigma] = params
         self.params = params
         return params
-
 
 #[1] http://home.iitk.ac.in/~kundu/paper160.pdf
