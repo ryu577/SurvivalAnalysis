@@ -19,16 +19,8 @@ class Weibull(Base):
         self.x = np.ones(sum(t>1.5))*1.5
         self.t = t[t<1.5]
 
-    def determine_params(self,k=-1,lmb=-1,params=None):
-        if params is not None:
-            k = params[0]
-            lmb = params[1]
-        else:
-            if k == -1:
-                k = self.k
-            if lmb == -1:
-                lmb = self.lmb
-        return [k,lmb]
+    def determine_params(self, k, lmb, params):
+        return super(Weibull, self).determine_params(k, lmb, params)
 
     def logpdf(self,x,k,lmb):
         return np.log(k) - k*np.log(lmb) + (k-1)*np.log(x) - (x/lmb)**k
@@ -246,9 +238,6 @@ class Weibull(Base):
     def optimal_threshold(self, reboot_cost):
         return self.lmb ** (self.k / (self.k - 1)) / (reboot_cost * self.k) ** (1 / (self.k - 1))
 
-
-# -79,735.943
-
 def generate_features(size):
     x1 = np.array([[1,1,0],[1,1,0]])
     x1 = np.repeat(x1,[2,(size-2)],axis=0)
@@ -279,4 +268,5 @@ if __name__ == '__main__':
     print str(w.loglik(t,x,W=W,x_censored=x_censored,x_samples=x_samples))
     print str(w.grad(t,x,W=W,x_censored=x_censored,x_samples=x_samples))
     w.gradient_descent(params=W)
+
 

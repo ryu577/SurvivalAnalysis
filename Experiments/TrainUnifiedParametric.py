@@ -71,7 +71,6 @@ def non_parametric2(t, x, rebootCost = 300.00):
 	#print "Optimal threshold: " + str(taus[np.argmax(relSavings)])
 	return taus[np.argmax(relSavings)]
 
-
 def plots_on_random(samples):
 	for i in range(samples):
 		t = np.concatenate((np.random.uniform(size=30)*500 , (100+np.random.uniform(size=30)*100)), axis=0)
