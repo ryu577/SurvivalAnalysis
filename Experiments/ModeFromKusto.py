@@ -61,7 +61,7 @@ def constructBootingVectors(tau3):
             times += np.array([0,max(tau3 - gammaprime,0),0,0,0,0])
         elif res[1][i] == 'Dead':
             counts += np.array([0,0,0,0,1,0])
-            times += np.array([0,0,0,0,2.8*tau3,0])
+            times += np.array([0,0,0,0,2.0*tau3,0])
         elif res[1][i] == 'HumanInvestigate':
             counts += np.array([0,0,0,1,0,0])
             times += np.array([0,0,0,T3Prime,0,0])
@@ -110,7 +110,6 @@ def constructFullMatrixForBootingThreshold():
         bootingWithTau.append(bootingToReady)
     return bootingWithTau
 
-
 def bootingVecs(tau3, tau1, p3 = 0.39):
     [x, z] = executeQuery(gammaquery)
     avgGamma = np.mean(z)
@@ -152,7 +151,6 @@ allBootingEvents = ("NodeStateTransitions | where ContainerCount > 0 and Precise
 "| project gammaprime = min_pxeToNew_pxeToBooting, T3Prime = DurationInSeconds, NewState, ContainerCount\n" +
 "| extend T3 = gammaprime + T3Prime")
 
-
 gammaquery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" + 
 "| where OldState == \"Unhealthy\" and NewState == \"Booting\" \n" +
 "| summarize by DurationInSeconds, ContainerCount, NodeId, PreciseTimeStamp = bin(PreciseTimeStamp, 1s), Cluster \n" +
@@ -169,7 +167,6 @@ gammaquery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeSt
 "| project DurationInSeconds, NodeId, bin(PreciseTimeStamp,1s), bin(pxetime,1s), Cluster, ContainerCount, additionalt, Message \n" +
 "| where additionalt <= 900 \n" +
 "| project additionalt + DurationInSeconds - 900, ContainerCount")
-
 
 pxeBootOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
 "| where OldState in (\"Booting\") and NewState == \"Ready\"\n" +
@@ -191,7 +188,6 @@ pxeBootOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and Prec
 "| summarize min(pxeToReady) by DurationInSeconds, NodeId, PreciseTimeStamp, ContainerCount\n" +
 "| project min_pxeToReady, ContainerCount")
 
-
 ## Note - this is not PXE to powering on durations. But it doesn't matter since we only use the count.
 pxeBootCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" + 
 "| where OldState == \"Booting\" and NewState in (\"PoweringOn\", \"Dead\") \n" +
@@ -209,12 +205,10 @@ pxeBootCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and Pre
 "| project DurationInSeconds, NodeId, bin(PreciseTimeStamp,1s), bin(pxetime,1s), Cluster, ContainerCount, additionalt, Message \n" +
 "| project DurationInSeconds, ContainerCount")
 
-
 powOnOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
 "| where OldState in (\"PoweringOn\", \"Recovering\") and NewState == \"Ready\"\n" +
 "| summarize by DurationInSeconds, ContainerCount, NodeId, PreciseTimeStamp = bin(PreciseTimeStamp, 1s), Cluster\n" +
 "| project DurationInSeconds, ContainerCount")
-
 
 powOnCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
 "| where OldState in (\"PoweringOn\", \"Recovering\") and NewState == \"HumanInvestigate\"\n" +
@@ -297,7 +291,6 @@ deadAllTranstns = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDura
 "| extend avgt = sumdurtn / sumvms * 60\n" +
 "| where newState in (\"Ready\", \"Booting\", \"HumanInvestigate\", \"Dead\", \"Unhealthy\", \"PoweringOn\")")
 
-
 hiCostQuery = ("cluster(\"Azurecm\").database('AzureCM').ServiceHealingTriggerEtwTable | where Tenant contains \"prdapp\" and TriggerType == \"Node\"\n" +
 "and PreciseTimeStamp > ago(20d)\n" +
 "| project shtime = PreciseTimeStamp, Cluster = Tenant, role = split(split(RoleInstanceName,\";\")[0], \":\")[1], TenantName\n" +
@@ -313,7 +306,6 @@ hiCostQuery = ("cluster(\"Azurecm\").database('AzureCM').ServiceHealingTriggerEt
 "| extend shdurtn = (EndTime - shtime)/1m\n" +
 "| project shdurtn, Hardware_Model \n" +
 "| summarize avg(shdurtn), count(), stdev(shdurtn)")
-
 
 readyQuery = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDurationDetails | \n" +
 "where PreciseTimeStamp > ago(10d)\n" +
