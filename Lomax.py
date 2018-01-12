@@ -140,7 +140,8 @@ class Lomax(Base):
     def expectedDT_s(tau,k,lmb,C_int):
         return 1/lmb/(k-1) - (1/lmb/(k-1) + tau*k/(k-1))*1/(1+lmb*tau)**k + (tau + C_int)*1/(1+lmb*tau)**k
 
-    def expectedT(self,tau,k,lmb):
+    def expectedT(self,tau,k=None,lmb=None,params=None):
+        [k,lmb] = self.determine_params(k,lmb,params)
         return (1/lmb/(k-1) - (1/lmb/(k-1) + tau*k/(k-1))*1/(1+lmb*tau)**k)/(1-1/(1+lmb*tau)**k)
 
     def samples(self, k=None, lmb=None, size = 1000, params = None):

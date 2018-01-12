@@ -4,20 +4,25 @@ from Sigmoid import *
 from BaseModel import *
 
 class Weibull(Base):
-    def __init__(self,k=0,lmb=0):
-        self.train = []
-        self.test = []
-        self.train_org = []
-        self.train_inorg = []
-        self.k = k
-        self.lmb = lmb
-        self.params = []
-        x_samples = generate_features(100)
-        t = generate_weibull(100)
-        self.x_censored = x_samples[t>1.5,]
-        self.x_samples = x_samples[t<1.5,]
-        self.x = np.ones(sum(t>1.5))*1.5
-        self.t = t[t<1.5]
+    def __init__(self,k=None,lmb=None,ti=None,xi=None):
+        if ti is not None:
+            self.train_org = ti
+            self.train_inorg = xi
+            self.newtonRh()
+        else:
+            self.train = []
+            self.test = []
+            self.train_org = []
+            self.train_inorg = []
+            self.k = k
+            self.lmb = lmb
+            self.params = []
+            x_samples = generate_features(100)
+            t = generate_weibull(100)
+            self.x_censored = x_samples[t>1.5,]
+            self.x_samples = x_samples[t<1.5,]
+            self.x = np.ones(sum(t>1.5))*1.5
+            self.t = t[t<1.5]
 
     def determine_params(self, k, lmb, params):
         return super(Weibull, self).determine_params(k, lmb, params)
@@ -33,6 +38,9 @@ class Weibull(Base):
         delWeibullDelLmb = (1-(x/lmb)**k)*(-k/lmb)*self.pdf(x, k, lmb)
         delWeibullDelK = self.pdf(x, k, lmb)*( (-(x/lmb)**k+1)*np.log(x/lmb) + 1/k)
         return np.array([delWeibullDelK,delWeibullDelLmb])
+
+    def cdf(self,t,k=-1,lmb=-1,params=None):
+        return 1 - self.survival(t,k,lmb)
 
     def survival(self,t,k=-1,lmb=-1,params=None):
         [k,lmb] = self.determine_params(k,lmb,params)

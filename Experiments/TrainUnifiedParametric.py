@@ -17,7 +17,7 @@ def plot_haz(t, x, i):
 	l = Lomax()
 	w = Weibull()
 	ln = Lognormal()
-	ll = Loglogistic()
+	ll = LogLogistic()
 	l.train_org = t
 	l.train_inorg = x
 	w.train_org = t
