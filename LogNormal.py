@@ -4,22 +4,35 @@ from Sigmoid import *
 from BaseModel import *
 
 class Lognormal(Base):
-    def __init__(self,mu=0, sigma=0.5):
-        self.train = []
-        self.test = []
-        self.train_org = []
-        self.train_inorg = []
-        self.mu = mu
-        self.sigma = sigma
-        self.params = []
-        
-    def pdf(self,t,mu,sigma):
+    def __init__(self,mu=0, sigma=0.5, ti= None, xi=None):
+        if ti is not None:
+            self.train_org = ti
+            self.train_inorg = xi
+            self.gradient_descent()
+            self.k = self.mu
+            self.lmb = self.sigma
+        else:
+            self.train = []
+            self.test = []
+            self.train_org = []
+            self.train_inorg = []
+            self.mu = mu
+            self.sigma = sigma
+            self.params = []
+
+    def determine_params(self, k, lmb, params):
+        return super(Lognormal, self).determine_params(k, lmb, params)
+
+    def pdf(self,t,mu=None,sigma=None, params=None):
+        [mu, sigma] = self.determine_params(mu,sigma,params)
         return 1/((2*np.pi)**.5 * sigma * t) * np.exp(-(np.log(t) - mu)**2/(2*sigma**2))
 
-    def cdf(self,t,mu,sigma):
+    def cdf(self,t,mu=None,sigma=None,params=None):
+        [mu, sigma] = self.determine_params(mu, sigma, params)
         return norm.cdf((np.log(t) - mu)/sigma)
 
-    def survival(self,t,mu,sigma):
+    def survival(self,t,mu=None,sigma=None,params=None):
+        [mu, sigma] = self.determine_params(mu, sigma, params)
         return 1 - self.cdf(t,mu,sigma)
 
     def logpdf(self,t,mu,sigma):
@@ -45,7 +58,7 @@ class Lognormal(Base):
         dellmb = (self.loglik(t,x,mu,sigma+eps) - self.loglik(t,x,mu,sigma-eps))/2/eps
         return np.array([delk,dellmb])
 
-    def gradient_descent(self, numIter=2001, params = np.array([2.0,2.0])):
+    def gradient_descent(self, numIter=2001, params = np.array([1.0,1.0])):
         for i in xrange(numIter):
             #lik = self.loglik(self.train_org,self.train_inorg,params[0],params[1],params[2])
             directn = self.grad(self.train_org,self.train_inorg,params[0],params[1])
@@ -64,6 +77,7 @@ class Lognormal(Base):
                 print "\n########\n"
         [self.mu,self.sigma] = params
         self.params = params
-        return params
+        #return params
 
 #[1] http://home.iitk.ac.in/~kundu/paper160.pdf
+

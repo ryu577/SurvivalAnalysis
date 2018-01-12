@@ -14,9 +14,9 @@ class Base(object):
             vals.append((i+0.005)*self.pdf(i+0.005)*0.01)
         return np.cumsum(vals)
 
-    def expectedXBwLts(self, t1, t2):
-        ress = integrate.quad(lambda x: x * self.pdf(x), t1, t2)
-        prob = self.cdf(t2) - self.cdf(t1)
+    def expectedXBwLts(self, t1, t2, k=None, lmb=None):
+        ress = integrate.quad(lambda x: x * self.pdf(x,k,lmb), t1, t2)
+        prob = self.cdf(t2,k,lmb) - (self.cdf(t1,k,lmb) if t1 > 0 else 0)
         return ress[0]/prob
 
     '''
@@ -47,6 +47,10 @@ class Base(object):
 
     def prob_TgrTau(self,xs=np.arange(1,100000)*0.01,lmb=0.2,t0=900.0,Y=480.0):
         return lmb*((xs>t0)*(self.survival(t0)-self.survival(xs)) + (xs> (t0-Y))*self.survival(xs))
+
+    def expectedT(self,tau,k=None,lmb=None,params = None):
+        [k,lmb] = self.determine_params(k,lmb,params)
+        return self.expectedXBwLts(0,tau,k,lmb)
 
     def plt_downtime(self,xs=np.arange(1,100000)*0.01,lmb=0,alp=1,lmb_prob=0,t0=900.0,Y=480.0,reg='log',col='b'):
         ys = self.expected_downtime(480.0,xs=xs,lmb=lmb,reg=reg)

@@ -4,10 +4,12 @@ import datetime
 import numpy as np
 import time
 from MarkovChains import *
+import getpass
 
 kusto_cluster = 'https://vmainsight.kusto.windows.net'
 # In case you want to authenticate with AAD application.
-kusto_client = KustoClient(kusto_cluster=kusto_cluster, username = 'ropandey@microsoft.com', password = 'enter your pwd')
+pwd = getpass.getpass()
+kusto_client = KustoClient(kusto_cluster=kusto_cluster, username = 'ropandey@microsoft.com', password = pwd)
 kusto_database = 'vmadb'
 
 #response = kusto_client.execute(kusto_database, 'cluster("Vmainsight").database("vmadb").NST | where Event == "PoweringOn-Ready" and DownVMs > 0 | project DurationInSeconds, DownVMs')
@@ -50,7 +52,7 @@ def constructBootingVectors(tau3):
         [gammaprime, T3Prime, T3] = [res[0][0,i], res[0][1,i], res[0][2,i]]
         if res[1][i] == 'Ready':
             # If duration is less than tau3, move it to ready
-            if T3 < tau3: 
+            if T3 < tau3:
                 counts += np.array([0,0,0,0,0,1])
                 times += np.array([0,0,0,0,0,max(T3 - gammaprime, 0)])
             else:
@@ -72,16 +74,17 @@ def constructBootingVectors(tau3):
 
 def populateRawVecs(query, ignore = {}):
     mapping = {'Ready':5, 'HumanInvestigate' : 3, 'Dead' : 4, 'PoweringOn': 1, 'Unhealthy' : 0, 'Booting' : 2}
-    powOnProbs = np.zeros(6)
+    powOnCounts = np.zeros(6)
     powOnTimes = np.zeros(6)
     response = kusto_client.execute(kusto_database, query)
     data = response.fetchall();
     time.sleep(0.6)
     for row in data:
         if row[0] not in ignore and row[0] in mapping:
-            powOnProbs[mapping[row[0]]] = row[2]
-            powOnTimes[mapping[row[0]]] = row[3]
-    return [powOnProbs/sum(powOnProbs), powOnTimes]
+            powOnCounts[mapping[row[0]]] += row[2]
+            powOnTimes[mapping[row[0]]] += row[3]
+    return [powOnCounts/sum(powOnCounts), powOnTimes/powOnCounts]
+
 
 def getHiCost(query):
     response = kusto_client.execute(kusto_database, query)

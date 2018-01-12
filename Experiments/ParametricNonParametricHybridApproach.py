@@ -1,4 +1,4 @@
-
+import matplotlib.pyplot as plt
 import sys
 sys.path.append('../')
 from Weibull import *
@@ -8,9 +8,8 @@ from LogLogistic import *
 from MarkovChains import *
 
 ## Single parameter cost function for validation.
-def cost(tau, scale = 0.1, shape = 1.05, rebootCost = 199.997):
-  l = Lomax()
-  Et = l.expectedT(tau, shape, scale)
+def cost(tau, l, scale = None, shape = None, rebootCost = 199.997):
+  Et = l.expectedT(tau)
   probs = np.array(
     [
       [0,l.survival(tau,shape,scale),l.cdf(tau,shape,scale)],
@@ -64,6 +63,19 @@ def constructMatrices(tau, ti, xi = None, rebootCost = 199.997, distr = None):
     return (probs, times)
 
 
+def censoreData(ti, censorLevel):
+    #xi = np.ones(sum(ti >= censorLevel)) * censorLevel
+    #ti1 = ti[ti < censorLevel]
+    xi = []
+    ti1 = []
+    for i in ti:
+        if i > censorLevel and np.random.uniform() < 0.2:
+            xi.append(censorLevel)
+        else:
+            ti1.append(i)
+    return [np.array(ti1), np.array(xi)]
+
+
 if __name__ == '__main__':
     l = Lomax(1.05, 0.1)
     ti = l.samples(size = 10000)
@@ -72,16 +84,25 @@ if __name__ == '__main__':
         (p,t) = constructMatrices(tau, ti)
         costs.append(TimeToAbsorbing(p,t,2)[0])
     print(np.arange(10,300,5)[np.argmin(costs)])
+    plt.plot(np.arange(10,300,5), costs)
+    plt.axvline(np.arange(10,300,5)[np.argmin(costs)], color="blue")
 
     #After some hit and trial.
     censorLevel = 70
-    xi = np.ones(sum(ti >= censorLevel)) * censorLevel
-    ti1 = ti[ti < censorLevel]
+    [ti1,xi] = censoreData(ti, censorLevel)
     l = Lomax(ti = ti1, xi = xi)
-    costs = []
+    w = Weibull(ti = ti1, xi = xi)
+    ln = Lognormal(ti = ti1, xi = xi)
+    costs1 = []
+    costs2 = []
     for tau in np.arange(10,300,5):
-        (p,t) = constructMatrices(tau, ti1, xi, distr = l)
-        costs.append(TimeToAbsorbing(p,t,2)[0])
-    print(np.arange(10,300,5)[np.argmin(costs)])
+        (p1,t1) = constructMatrices(tau, ti1, xi, distr = ln)
+        costs1.append(TimeToAbsorbing(p1,t1,2)[0] + 0*tau)
+        costs2.append(cost(tau, ln) + 0*tau)
+    print(np.arange(10,300,5)[np.argmin(costs1)])
+    print(np.arange(10,300,5)[np.argmin(costs2)])
+
+    plt.plot(np.arange(10,300,5), costs1)
+    plt.axvline(np.arange(10,300,5)[np.argmin(costs1)], color="red")
 
 

@@ -2,20 +2,31 @@ import numpy as np
 from Sigmoid import *
 from BaseModel import *
 
-class Loglogistic(Base):
-    def __init__(self,alp=1, beta=0.5):
-        self.train = []
-        self.test = []
-        self.train_org = []
-        self.train_inorg = []
-        self.alp = alp
-        self.beta = beta
-        self.params = []
+class LogLogistic(Base):
+    def __init__(self,alp=1, beta=0.5, ti = None, xi = None):
+        if ti is not None:
+            self.train_org = ti
+            self.train_inorg = xi
+            self.gradient_descent()
+        else:
+            self.train = []
+            self.test = []
+            self.train_org = []
+            self.train_inorg = []
+            self.alp = alp
+            self.beta = beta
+            self.params = []
 
-    def pdf(self,x,alp,beta):
+    def pdf(self,x,alp=None,beta=None):
+        if alp is None:
+            alp = self.alp
+            beta = self.beta
         return (beta/alp)*(x/alp)**(beta-1)/(1+(x/alp)**beta)**2
 
-    def cdf(self,x,alp,beta):
+    def cdf(self,x,alp=None,beta=None):
+        if alp is None:
+            alp = self.alp
+            beta = self.beta
         return 1/(1+(x/alp)**-beta)
 
     def logpdf(self,x,alp,beta):
