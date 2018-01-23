@@ -47,7 +47,7 @@ class Lomax(Base):
         delk = n/k - sum(np.log(1+lmb*t)) - sum(np.log(1+lmb*x))
         dellmb = n/lmb -(k+1) * sum(t/(1+lmb*t)) -k*sum(x/(1+lmb*x))
         return np.array([delk,dellmb])
-    
+
     def numerical_grad(self,t,x,k=None,lmb=None):
         if k is None or lmb is None:
             k = self.k
@@ -127,7 +127,7 @@ class Lomax(Base):
         self.params = params
         return params
 
-    def optimalWaitThreshold(Cint, k=None, lmb=None):
+    def optimalWaitThreshold(self, Cint, k=None, lmb=None):
         if k is None or lmb is None:
             k = self.k
             lmb = self.lmb

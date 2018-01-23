@@ -168,15 +168,15 @@ class Weibull(Base):
                         params2 = params1
             params = params2
             if i%25 == 0:
-                print "Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn)
-                print "\n########\n"
+                print("Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn))
+                print("\n########\n")
         return params
 
     def newtonRh(self,numIter=21, params = np.array([.1,.1])):
         for i in xrange(numIter):
             directn = self.grad(self.train_org,self.train_inorg,params[0],params[1])
             if sum(abs(directn)) < 1e-5:
-                print "\nIt took: " + str(i) + " Iterations.\n Gradients - " + str(directn)
+                print("\nIt took: " + str(i) + " Iterations.\n Gradients - " + str(directn))
                 [self.k, self.lmb] = params
                 self.params = params
                 return params
@@ -184,7 +184,7 @@ class Weibull(Base):
             step = np.linalg.solve(self.hessian(self.train_org,self.train_inorg,params[0],params[1]),directn)
             params = params - step
             if min(params) < 0:
-                print "Drastic measures"
+                print("Drastic measures")
                 params = params + step # undo the effect of taking the step.
                 for alp1 in [1e-8,1e-7,1e-5,1e-3,1e-2,.1,.5,1.0]:
                     params1 = params - alp1 * step
@@ -196,7 +196,7 @@ class Weibull(Base):
                             scale = alp1
                 params = params2
             if i%10 == 0:
-                print "Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn) + "\n##\n\n"
+                print("Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn) + "\n##\n\n")
         [self.k, self.lmb] = params
         self.params = params
         return params
@@ -246,6 +246,10 @@ class Weibull(Base):
     def optimal_threshold(self, reboot_cost):
         return self.lmb ** (self.k / (self.k - 1)) / (reboot_cost * self.k) ** (1 / (self.k - 1))
 
+    def samples(self, size=1000):
+        return exponweib.rvs(a=1,c=self.k,scale=self.lmb,size=size)
+
+
 def generate_features(size):
     x1 = np.array([[1,1,0],[1,1,0]])
     x1 = np.repeat(x1,[2,(size-2)],axis=0)
@@ -273,8 +277,8 @@ if __name__ == '__main__':
     x = np.ones(sum(t>1.5))*1.5
     t = t[t<1.5]
     W = np.array([[0.1,0.4],[0.5,0.3],[0.2,0.7]])
-    print str(w.loglik(t,x,W=W,x_censored=x_censored,x_samples=x_samples))
-    print str(w.grad(t,x,W=W,x_censored=x_censored,x_samples=x_samples))
+    print(str(w.loglik(t,x,W=W,x_censored=x_censored,x_samples=x_samples)))
+    print(str(w.grad(t,x,W=W,x_censored=x_censored,x_samples=x_samples)))
     w.gradient_descent(params=W)
 
 

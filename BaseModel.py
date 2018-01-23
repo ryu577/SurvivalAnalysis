@@ -39,9 +39,9 @@ class Base(object):
             k = params[0]
             lmb = params[1]
         else:
-            if k < 0 or k is None:
+            if k is None or k < 0:
                 k = self.k
-            if lmb < 0 or lmb is None:
+            if lmb is None or lmb < 0:
                 lmb = self.lmb
         return [k,lmb]
 

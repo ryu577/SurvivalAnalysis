@@ -73,8 +73,8 @@ class Lognormal(Base):
                         params2 = params1
             params = params2
             if i%100 == 0:
-                print "Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn)
-                print "\n########\n"
+                print("Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn))
+                print("\n########\n")
         [self.mu,self.sigma] = params
         self.params = params
         #return params

@@ -69,8 +69,8 @@ class LogLogistic(Base):
                         params2 = params1
             params = params2
             if i%100 == 0:
-                print "Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn)
-                print "\n########\n"
+                print("Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn))
+                print("\n########\n")
         [self.alpha,self.beta] = params
         self.params = params
         return params
@@ -95,7 +95,7 @@ class LogLogistic(Base):
         for i in xrange(numIter):
             directn = self.grad(self.train_org,self.train_inorg,params[0],params[1])
             if sum(abs(directn)) < 1e-5:
-                print "\nIt took: " + str(i) + " Iterations.\n Gradients - " + str(directn)
+                print("\nIt took: " + str(i) + " Iterations.\n Gradients - " + str(directn))
                 [self.alpha, self.beta] = params
                 self.alp = self.alpha
                 self.params = params
@@ -114,11 +114,11 @@ class LogLogistic(Base):
             steps[scale] = steps[scale] + 1
             params = params2
             if i % 10 == 0:
-                print "Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn) + "\n##\n\n"
+                print("Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn) + "\n##\n\n")
         [self.alpha, self.beta] = params
         self.alp = self.alpha
         self.params = params
-        print steps
+        print(steps)
         return params
 
 def fixedAlp(beta):
