@@ -12,7 +12,6 @@ pwd = getpass.getpass()
 kusto_client = KustoClient(kusto_cluster=kusto_cluster, username = 'ropandey@microsoft.com', password = pwd)
 kusto_database = 'vmadb'
 
-#response = kusto_client.execute(kusto_database, 'cluster("Vmainsight").database("vmadb").NST | where Event == "PoweringOn-Ready" and DownVMs > 0 | project DurationInSeconds, DownVMs')
 def executeQuery(query):
     response = kusto_client.execute(kusto_database, query)
     data = response.fetchall();
@@ -47,14 +46,18 @@ def executeBootingQuery(query):
 def constructBootingVectors(tau3):
     counts = np.zeros(6)
     times = np.zeros(6)
-    res = executeBootingQuery(allBootingEvents)
+    if allBootingEvents[1] is None:
+        res = executeBootingQuery(allBootingEvents[0])
+        allBootingEvents[1] = res
+    else:
+        res = allBootingEvents[1]
     for i in range(len(res[1])):
         [gammaprime, T3Prime, T3] = [res[0][0,i], res[0][1,i], res[0][2,i]]
         if res[1][i] == 'Ready':
             # If duration is less than tau3, move it to ready
             if T3 < tau3:
                 counts += np.array([0,0,0,0,0,1])
-                times += np.array([0,0,0,0,0,max(T3 - gammaprime, 0)])
+                times += np.array([0,0,0,0,0,max(T3 - gammaprime, 0)]) #T3 - gammaprime = T3Prime.
             else:
                 counts += np.array([0,1,0,0,0,0])
                 times += np.array([0,max(tau3 - gammaprime,0),0,0,0,0])
@@ -63,17 +66,16 @@ def constructBootingVectors(tau3):
             times += np.array([0,max(tau3 - gammaprime,0),0,0,0,0])
         elif res[1][i] == 'Dead':
             counts += np.array([0,0,0,0,1,0])
-            times += np.array([0,0,0,0,2.0*tau3,0])
+            times += np.array([0,0,0,0,1.0*tau3,0]) ##################
         elif res[1][i] == 'HumanInvestigate':
             counts += np.array([0,0,0,1,0,0])
             times += np.array([0,0,0,T3Prime,0,0])
     counts1 = np.copy(counts)
     counts1[counts1 == 0] = 1
-    #return [counts / len(res[1]), times / counts1]
     return [counts / sum(counts), times / counts1]
 
 def populateRawVecs(query, ignore = {}):
-    mapping = {'Ready':5, 'HumanInvestigate' : 3, 'Dead' : 4, 'PoweringOn': 1, 'Unhealthy' : 0, 'Booting' : 2}
+    mapping = { 'Unhealthy' : 0, 'PoweringOn': 1, 'Booting' : 2, 'HumanInvestigate' : 3, 'Dead' : 4, 'Ready' : 5 }
     powOnCounts = np.zeros(6)
     powOnTimes = np.zeros(6)
     response = kusto_client.execute(kusto_database, query)
@@ -82,8 +84,8 @@ def populateRawVecs(query, ignore = {}):
     for row in data:
         if row[0] not in ignore and row[0] in mapping:
             powOnCounts[mapping[row[0]]] += row[2]
-            powOnTimes[mapping[row[0]]] += row[3]
-    return [powOnCounts/sum(powOnCounts), powOnTimes/powOnCounts]
+            powOnTimes[mapping[row[0]]] = row[3]
+    return [powOnCounts/sum(powOnCounts), powOnTimes]
 
 
 def getHiCost(query):
@@ -95,14 +97,16 @@ def getHiCost(query):
 
 '''
 Constructs the matrices and calculates costs corresponding to a range of thresholds.
+Savings matrices to view in excel is possible via - 
+>> np.savetxt('p.csv', probs, delimiter=',')
 '''
-def constructFullMatrixForBootingThreshold():
-    [powOnProbs, powOnTimes] = populateRawVecs(powOnAllTrnstns, {'PoweringOn'})
-    [unhlProbs, unhlTimes] = populateRawVecs(unhlAllTrnstns, {'Unhealthy'})
-    [deadProbs, deadTimes] = populateRawVecs(deadAllTranstns, {'Dead'})
+def constructFullMatrixForBootingThreshold(plot=False):
+    [powOnProbs, powOnTimes] = populateRawVecs(powOnAllTrnstns[0], {'PoweringOn'})
+    [unhlProbs, unhlTimes] = populateRawVecs(unhlAllTrnstns[0], {'Unhealthy'})
+    [deadProbs, deadTimes] = populateRawVecs(deadAllTranstns[0], {'Dead'})
     hiProbs = np.array([0,0,0,0,0,1])
-    hiTimes = np.array([0,0,0,0,0,getHiCost(hiCostQuery)*60])
-    [readyProbs, readyTimes] = populateRawVecs(readyQuery, {'Ready'})
+    hiTimes = np.array([0,0,0,0,0,getHiCost(hiCostQuery[0])*60])
+    [readyProbs, readyTimes] = populateRawVecs(readyQuery[0], {'Ready'})
     bootingWithTau = []
     for tau3 in np.arange(300, 940, 40):
         [bootingProbs, bootingTimes] = constructBootingVectors(tau3)
@@ -111,7 +115,12 @@ def constructFullMatrixForBootingThreshold():
         timesToAbsorbing = TimeToAbsorbing(probs, times, 5)
         bootingToReady = timesToAbsorbing[2]
         bootingWithTau.append(bootingToReady)
-    return bootingWithTau
+    if plot:
+        fig = plt.figure()
+        plt.plot(np.arange(300, 940, 40), bootingWithTau)
+        plt.savefig('..\\Plots\\BootingThresholdProfile\\' + 'global' + '.png')
+        plt.close(fig)
+    return np.arange(300, 940, 40)[np.argmin(bootingWithTau)]
 
 def bootingVecs(tau3, tau1, p3 = 0.39):
     [x, z] = executeQuery(gammaquery)
@@ -134,12 +143,12 @@ def poweringOnVecs(tau):
 ################################
 # Kusto queries
 ################################
-allBootingEvents = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
+allBootingEvents = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > ago(20d)\n" +
 "| where OldState in (\"Booting\")\n" +
 "| summarize by DurationInSeconds, ContainerCount, NodeId, PreciseTimeStamp = bin(PreciseTimeStamp, 1s), Cluster, NewState\n" +
 "| join kind = inner (\n"+
 "cluster(\"Azurecm\").database('AzureCM').TMMgmtNodeEventsEtwTable\n" +
-"| where PreciseTimeStamp >= datetime(11-19-2017)\n" +
+"| where PreciseTimeStamp >= ago(20d)\n" +
 "and Message contains \"PxeInfo suggests the Node must be booting. Based on HealthTimeoutsRebooting and lastPxeReqArrivalTime\" and Tenant contains \"prdapp\"\n" +
 "| project pxetime = bin(PreciseTimeStamp,1s) , Tenant , NodeId , Message\n" +
 "| extend additionalt = todouble(extract(\"let's give it ([0-9]+)\", 1, Message))\n" +
@@ -153,6 +162,7 @@ allBootingEvents = ("NodeStateTransitions | where ContainerCount > 0 and Precise
 "| summarize argmin(pxeToNew, additionalt, pxeToBooting) by DurationInSeconds, NodeId, bin(PreciseTimeStamp,1s), ContainerCount, NewState\n" +
 "| project gammaprime = min_pxeToNew_pxeToBooting, T3Prime = DurationInSeconds, NewState, ContainerCount\n" +
 "| extend T3 = gammaprime + T3Prime")
+allBootingEvents = [allBootingEvents, None]
 
 gammaquery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" + 
 "| where OldState == \"Unhealthy\" and NewState == \"Booting\" \n" +
@@ -170,6 +180,7 @@ gammaquery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeSt
 "| project DurationInSeconds, NodeId, bin(PreciseTimeStamp,1s), bin(pxetime,1s), Cluster, ContainerCount, additionalt, Message \n" +
 "| where additionalt <= 900 \n" +
 "| project additionalt + DurationInSeconds - 900, ContainerCount")
+gammaquery = [gammaquery, None]
 
 pxeBootOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
 "| where OldState in (\"Booting\") and NewState == \"Ready\"\n" +
@@ -190,6 +201,7 @@ pxeBootOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and Prec
 "| where pxeToReady > 0\n" +
 "| summarize min(pxeToReady) by DurationInSeconds, NodeId, PreciseTimeStamp, ContainerCount\n" +
 "| project min_pxeToReady, ContainerCount")
+pxeBootOrganicQuery = [pxeBootOrganicQuery, None]
 
 ## Note - this is not PXE to powering on durations. But it doesn't matter since we only use the count.
 pxeBootCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" + 
@@ -207,16 +219,19 @@ pxeBootCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and Pre
 "| where (isnull(pxetime) or delta > 0) \n" +
 "| project DurationInSeconds, NodeId, bin(PreciseTimeStamp,1s), bin(pxetime,1s), Cluster, ContainerCount, additionalt, Message \n" +
 "| project DurationInSeconds, ContainerCount")
+pxeBootCensoredQuery = [pxeBootCensoredQuery, None]
 
 powOnOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
 "| where OldState in (\"PoweringOn\", \"Recovering\") and NewState == \"Ready\"\n" +
 "| summarize by DurationInSeconds, ContainerCount, NodeId, PreciseTimeStamp = bin(PreciseTimeStamp, 1s), Cluster\n" +
 "| project DurationInSeconds, ContainerCount")
+powOnOrganicQuery = [powOnOrganicQuery, None]
 
 powOnCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
 "| where OldState in (\"PoweringOn\", \"Recovering\") and NewState == \"HumanInvestigate\"\n" +
 "| summarize by DurationInSeconds, ContainerCount, NodeId, PreciseTimeStamp = bin(PreciseTimeStamp, 1s), Cluster\n" +
 "| project DurationInSeconds, ContainerCount")
+powOnCensoredQuery = [powOnCensoredQuery, None]
 
 powOnAllTrnstns = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDurationDetails | \n" +
 "where PreciseTimeStamp > ago(20d)\n" +
@@ -242,6 +257,7 @@ powOnAllTrnstns = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDura
 "| summarize sumdurtn = sum(durtnMultVMs), sumvms = sum(min_delta_VMCount) by newState\n" +
 "| extend avgt = sumdurtn / sumvms * 60\n" +
 "| where newState in (\"Ready\", \"Booting\", \"HumanInvestigate\", \"Dead\", \"Unhealthy\")")
+powOnAllTrnstns = [powOnAllTrnstns, None]
 
 unhlAllTrnstns = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDurationDetails | \n" +
 "where PreciseTimeStamp > ago(20d)\n" +
@@ -268,6 +284,7 @@ unhlAllTrnstns = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDurat
 "| summarize sumdurtn = sum(durtnMultVMs), sumvms = sum(min_delta_VMCount) by newState\n" +
 "| extend avgt = sumdurtn / sumvms * 60\n" +
 "| where newState in (\"Ready\", \"Booting\", \"HumanInvestigate\", \"Dead\", \"Unhealthy\", \"PoweringOn\", \"Recovering\")")
+unhlAllTrnstns = [unhlAllTrnstns, None]
 
 deadAllTranstns = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDurationDetails | \n" +
 "where PreciseTimeStamp > ago(20d)\n" +
@@ -293,6 +310,7 @@ deadAllTranstns = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDura
 "| summarize sumdurtn = sum(durtnMultVMs), sumvms = sum(min_delta_VMCount) by newState\n" +
 "| extend avgt = sumdurtn / sumvms * 60\n" +
 "| where newState in (\"Ready\", \"Booting\", \"HumanInvestigate\", \"Dead\", \"Unhealthy\", \"PoweringOn\")")
+deadAllTranstns = [deadAllTranstns, None]
 
 hiCostQuery = ("cluster(\"Azurecm\").database('AzureCM').ServiceHealingTriggerEtwTable | where Tenant contains \"prdapp\" and TriggerType == \"Node\"\n" +
 "and PreciseTimeStamp > ago(20d)\n" +
@@ -309,6 +327,7 @@ hiCostQuery = ("cluster(\"Azurecm\").database('AzureCM').ServiceHealingTriggerEt
 "| extend shdurtn = (EndTime - shtime)/1m\n" +
 "| project shdurtn, Hardware_Model \n" +
 "| summarize avg(shdurtn), count(), stdev(shdurtn)")
+hiCostQuery = [hiCostQuery, None]
 
 readyQuery = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDurationDetails | \n" +
 "where PreciseTimeStamp > ago(10d)\n" +
@@ -334,5 +353,5 @@ readyQuery = ("cluster(\"Azurecm\").database('AzureCM').NodeStateChangeDurationD
 "| extend durtnMultVMs = DurationInMin*min_delta_VMCount\n" +
 "| summarize sumdurtn = sum(durtnMultVMs), sumvms = sum(min_delta_VMCount) by newState\n" +
 "| extend avgt = sumdurtn / sumvms * 60")
-
+readyQuery = [readyQuery, None]
 
