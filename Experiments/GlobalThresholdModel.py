@@ -108,7 +108,7 @@ def constructFullMatrixForBootingThreshold(plot=False):
     hiTimes = np.array([0,0,0,0,0,getHiCost(hiCostQuery[0])*60])
     [readyProbs, readyTimes] = populateRawVecs(readyQuery[0], {'Ready'})
     bootingWithTau = []
-    for tau3 in np.arange(300, 940, 40):
+    for tau3 in np.arange(300, 940, 10):
         [bootingProbs, bootingTimes] = constructBootingVectors(tau3)
         probs = np.matrix(np.array([unhlProbs, powOnProbs, bootingProbs, hiProbs, deadProbs, readyProbs]))
         times = np.matrix(np.array([unhlTimes, powOnTimes, bootingTimes, hiTimes, deadTimes, readyTimes]))
@@ -117,10 +117,10 @@ def constructFullMatrixForBootingThreshold(plot=False):
         bootingWithTau.append(bootingToReady)
     if plot:
         fig = plt.figure()
-        plt.plot(np.arange(300, 940, 40), bootingWithTau)
+        plt.plot(np.arange(300, 940, 10), bootingWithTau)
         plt.savefig('..\\Plots\\BootingThresholdProfile\\' + 'global' + '.png')
         plt.close(fig)
-    return np.arange(300, 940, 40)[np.argmin(bootingWithTau)]
+    return np.arange(300, 940, 10)[np.argmin(bootingWithTau)]
 
 def bootingVecs(tau3, tau1, p3 = 0.39):
     [x, z] = executeQuery(gammaquery)
@@ -162,6 +162,38 @@ allBootingEvents = ("NodeStateTransitions | where ContainerCount > 0 and Precise
 "| summarize argmin(pxeToNew, additionalt, pxeToBooting) by DurationInSeconds, NodeId, bin(PreciseTimeStamp,1s), ContainerCount, NewState\n" +
 "| project gammaprime = min_pxeToNew_pxeToBooting, T3Prime = DurationInSeconds, NewState, ContainerCount\n" +
 "| extend T3 = gammaprime + T3Prime")
+
+allBootingEvents = ("cluster(\"Azurecm\").database(\'AzureCM\').NodeStateChangeDurationDetails | \n" +
+"where PreciseTimeStamp > ago(20d)\n" +
+"and oldState in (\"Booting\") and Tenant contains \"prdapp\"\n" +
+"| extend NodeId = nodeId\n" +
+"| extend DurationInSeconds = todouble(stateDurationMilliseconds)/1000\n" +
+"| join kind=inner\n" +
+"(\n" +
+"    cluster(\"Azurecm\").database(\'AzureCM\').TMMgmtNodeEventsEtwTable\n" +
+"    | where PreciseTimeStamp >= ago(20d)\n" +
+"    and Message contains \"PxeInfo suggests the Node must be booting. Based on HealthTimeoutsRebooting and lastPxeReqArrivalTime\" and Tenant contains \"prdapp\"\n" +
+"    | project pxetime = bin(PreciseTimeStamp,1s) , Tenant , NodeId , Message\n" +
+"    | extend additionalt = todouble(extract(\"let's give it ([0-9]+)\", 1, Message))\n" +
+"    | where additionalt <= 900 | extend trupxetime = pxetime - (900 - additionalt)*1s \n" +
+")\n" +
+"on NodeId\n" +
+"| where trupxetime - 20m < PreciseTimeStamp and PreciseTimeStamp < trupxetime + 20m\n" +
+"| summarize by bin(PreciseTimeStamp,1ms), NodeId, oldState, newState, DurationInSeconds, additionalt, trupxetime, pxeToNew = (PreciseTimeStamp - trupxetime)/1s\n" +
+"| extend pxeToBooting = pxeToNew - DurationInSeconds \n" +
+"| where pxeToNew > 0 and pxeToBooting > 0\n" +
+"| summarize argmin(pxeToNew, additionalt, pxeToBooting) by DurationInSeconds, NodeId, bin(PreciseTimeStamp, 1ms), newState\n" +
+"| project gammaprime = min_pxeToNew_pxeToBooting, T3Prime = DurationInSeconds, NewState = newState, NodeId, PreciseTimeStamp\n" +
+"| extend T3 = gammaprime + T3Prime\n" +
+"| join kind=inner\n" +
+"(\n" +
+"    VMALENS | where StartTime > ago(20d) | project NodeId, StartTime, EndTime, DurationInMin, Hardware_Model, ResourceId\n" +
+")\n" +
+"on NodeId\n" +
+"| where StartTime < PreciseTimeStamp and PreciseTimeStamp < EndTime \n" +
+"| summarize count(), dcount(ResourceId) by gammaprime, T3Prime, NewState, Hardware_Model, T3, NodeId\n" +
+"| project gammaprime, T3Prime, NewState, ContainerCount = dcount_ResourceId, Hardware_Model, T3\n" +
+"| project-away Hardware_Model")
 allBootingEvents = [allBootingEvents, None]
 
 gammaquery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" + 

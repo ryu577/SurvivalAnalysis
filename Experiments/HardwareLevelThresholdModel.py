@@ -11,23 +11,24 @@ import time
 
 '''
 Constructs the matrices and calculates costs corresponding to a range of thresholds.
+>> np.savetxt('p.csv', probs, delimiter=',')
 '''
 def constructFullMatricesByHW(level = 'Wiwynn Azure Gen5 1 Compute C1042H', plot=False):
   ## First get global vectors.
   [powOnProbsBase, powOnTimesBase] = populateRawVecs(powOnAllTrnstns[0], {'PoweringOn'})
-  [powOnProbs, powOnTimes] = populateRawVecsForFeature(powOnAllTrnstnsWHWQry[0], {'PoweringOn'}, level, powOnProbsBase * 5.0, powOnTimesBase)
+  [powOnProbs, powOnTimes] = populateRawVecsForFeature(powOnAllTrnstnsWHWQry[0], {'PoweringOn'}, level, powOnProbsBase * 1.0, powOnTimesBase)
   [unhlProbsBase, unhlTimesBase] = populateRawVecs(unhlAllTrnstns[0], {'Unhealthy'})
-  [unhlProbs, unhlTimes] = populateRawVecsForFeature(unhlAllTrnstnsWHWQry[0], {'Unhealthy'}, level, unhlProbsBase * 5.0, unhlTimesBase)
+  [unhlProbs, unhlTimes] = populateRawVecsForFeature(unhlAllTrnstnsWHWQry[0], {'Unhealthy'}, level, unhlProbsBase * 1.0, unhlTimesBase)
   [deadProbsBase, deadTimesBase] = populateRawVecs(deadAllTranstns[0], {'Dead'})
-  [deadProbs, deadTimes] = populateRawVecsForFeature(deadAllTrnstnsWHWQry[0], {'Dead'}, level, deadProbsBase * 5.0, deadTimesBase)
+  [deadProbs, deadTimes] = populateRawVecsForFeature(deadAllTrnstnsWHWQry[0], {'Dead'}, level, deadProbsBase * 1.0, deadTimesBase)
   hiProbs = np.array([0,0,0,0,0,1])
   hiTimes = np.array([0,0,0,0,0,getHiCost(hiCostQuery[0])*60]) #####TODO!!
   [readyProbsBase, readyTimesBase] = populateRawVecs(readyQuery[0], {'Ready'})
-  [readyProbs, readyTimes] = populateRawVecsForFeature(readyTransitionsWHWQry[0], {'Dead'}, level, deadProbsBase * 5.0, deadTimesBase)
+  [readyProbs, readyTimes] = populateRawVecsForFeature(readyTransitionsWHWQry[0], {'Dead'}, level, readyProbsBase * 1.0, deadTimesBase)
   bootingWithTau = []
-  for tau3 in np.arange(300, 940, 40):
+  for tau3 in np.arange(300, 940, 10):
       [bootingProbsBase, bootingTimesBase] = constructBootingVectors(tau3)
-      [bootingProbs, bootingTimes] = constructBootingVectorsForFeature(tau3, level, bootingProbsBase * 5.0, bootingTimesBase)
+      [bootingProbs, bootingTimes] = constructBootingVectorsForFeature(tau3, level, bootingProbsBase * 1.0, bootingTimesBase)
       probs = np.matrix(np.array([unhlProbs, powOnProbs, bootingProbs, hiProbs, deadProbs, readyProbs]))
       times = np.matrix(np.array([unhlTimes, powOnTimes, bootingTimes, hiTimes, deadTimes, readyTimes]))
       timesToAbsorbing = TimeToAbsorbing(probs, times, 5)
@@ -35,10 +36,10 @@ def constructFullMatricesByHW(level = 'Wiwynn Azure Gen5 1 Compute C1042H', plot
       bootingWithTau.append(bootingToReady)
   if plot:
     fig = plt.figure()
-    plt.plot(np.arange(300, 940, 40), bootingWithTau)
+    plt.plot(np.arange(300, 940, 10), bootingWithTau)
     plt.savefig('..\\Plots\\BootingThresholdProfile\\' + level + '.png')
     plt.close(fig)
-  return np.arange(300, 940, 40)[np.argmin(bootingWithTau)]
+  return np.arange(300, 940, 10)[np.argmin(bootingWithTau)]
 
 
 def executeBootingQueryByFeture(query):
@@ -68,7 +69,7 @@ def constructBootingVectorsForFeature(tau3, level = 'Wiwynn Gen6 Optimized', bas
     else:
         res = allBootingEventsWHWQry[1]
     for i in range(len(res[1])):
-        if res[2] == level:
+        if res[2][i] == level:
           [gammaprime, T3Prime, T3] = [res[0][0,i], res[0][1,i], res[0][2,i]]
           if res[1][i] == 'Ready':
               # If duration is less than tau3, move it to ready
@@ -183,6 +184,38 @@ allBootingEventsWHWQry = ("NodeStateTransitions | where ContainerCount > 0 and P
 "| summarize argmin(pxeToNew, additionalt, pxeToBooting) by DurationInSeconds, NodeId, bin(PreciseTimeStamp,1s), ContainerCount, NewState, Hardware_Model\n" +
 "| project gammaprime = min_pxeToNew_pxeToBooting, T3Prime = DurationInSeconds, NewState, ContainerCount, Hardware_Model\n" +
 "| extend T3 = gammaprime + T3Prime")
+
+allBootingEventsWHWQry = ("cluster(\"Azurecm\").database(\'AzureCM\').NodeStateChangeDurationDetails | \n" +
+"where PreciseTimeStamp > ago(20d)\n" +
+"and oldState in (\"Booting\") and Tenant contains \"prdapp\"\n" +
+"| extend NodeId = nodeId\n" +
+"| extend DurationInSeconds = todouble(stateDurationMilliseconds)/1000\n" +
+"| join kind=inner\n" +
+"(\n" +
+"    cluster(\"Azurecm\").database(\'AzureCM\').TMMgmtNodeEventsEtwTable\n" +
+"    | where PreciseTimeStamp >= ago(20d)\n" +
+"    and Message contains \"PxeInfo suggests the Node must be booting. Based on HealthTimeoutsRebooting and lastPxeReqArrivalTime\" and Tenant contains \"prdapp\"\n" +
+"    | project pxetime = bin(PreciseTimeStamp,1s) , Tenant , NodeId , Message\n" +
+"    | extend additionalt = todouble(extract(\"let's give it ([0-9]+)\", 1, Message))\n" +
+"    | where additionalt <= 900 | extend trupxetime = pxetime - (900 - additionalt)*1s \n" +
+")\n" +
+"on NodeId\n" +
+"| where trupxetime - 20m < PreciseTimeStamp and PreciseTimeStamp < trupxetime + 20m\n" +
+"| summarize by bin(PreciseTimeStamp,1ms), NodeId, oldState, newState, DurationInSeconds, additionalt, trupxetime, pxeToNew = (PreciseTimeStamp - trupxetime)/1s\n" +
+"| extend pxeToBooting = pxeToNew - DurationInSeconds \n" +
+"| where pxeToNew > 0 and pxeToBooting > 0\n" +
+"| summarize argmin(pxeToNew, additionalt, pxeToBooting) by DurationInSeconds, NodeId, bin(PreciseTimeStamp, 1ms), newState\n" +
+"| project gammaprime = min_pxeToNew_pxeToBooting, T3Prime = DurationInSeconds, NewState = newState, NodeId, PreciseTimeStamp\n" +
+"| extend T3 = gammaprime + T3Prime\n" +
+"| join kind=inner\n" +
+"(\n" +
+"    VMALENS | where StartTime > ago(20d) | project NodeId, StartTime, EndTime, DurationInMin, Hardware_Model, ResourceId\n" +
+")\n" +
+"on NodeId\n" +
+"| where StartTime < PreciseTimeStamp and PreciseTimeStamp < EndTime \n" +
+"| summarize count(), dcount(ResourceId) by gammaprime, T3Prime, NewState, Hardware_Model, T3, NodeId\n" +
+"| project gammaprime, T3Prime, NewState, ContainerCount = dcount_ResourceId, Hardware_Model, T3")
+
 allBootingEventsWHWQry = [allBootingEventsWHWQry, None]
 
 ###################################################
