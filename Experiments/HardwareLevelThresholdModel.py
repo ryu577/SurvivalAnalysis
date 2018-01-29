@@ -26,11 +26,15 @@ def constructFullMatricesByHW(level = 'Wiwynn Azure Gen5 1 Compute C1042H', plot
   [readyProbsBase, readyTimesBase] = populateRawVecs(readyQuery[0], {'Ready'})
   [readyProbs, readyTimes] = populateRawVecsForFeature(readyTransitionsWHWQry[0], {'Dead'}, level, readyProbsBase * 1.0, deadTimesBase)
   bootingWithTau = []
+  probvecs = []
+  timevecs = []
   for tau3 in np.arange(300, 940, 10):
       [bootingProbsBase, bootingTimesBase] = constructBootingVectors(tau3)
       [bootingProbs, bootingTimes] = constructBootingVectorsForFeature(tau3, level, bootingProbsBase * 1.0, bootingTimesBase)
       probs = np.matrix(np.array([unhlProbs, powOnProbs, bootingProbs, hiProbs, deadProbs, readyProbs]))
       times = np.matrix(np.array([unhlTimes, powOnTimes, bootingTimes, hiTimes, deadTimes, readyTimes]))
+      probvecs.append(np.array(bootingProbs))
+      timevecs.append(np.array(bootingTimes))
       timesToAbsorbing = TimeToAbsorbing(probs, times, 5)
       bootingToReady = timesToAbsorbing[2]
       bootingWithTau.append(bootingToReady)
@@ -48,17 +52,19 @@ def executeBootingQueryByFeture(query):
     time.sleep(0.6)
     gammaprime = []
     T3Prime = []
-    NewState = []
+    NewStates = []
     T3 = []
     feature = []
+    counts = []
     for row in data:
         for j in range(int(row[3])):
             gammaprime.append(row[0])
             T3Prime.append(row[1])
-            NewState.append(row[2])
+            NewStates.append(row[2])
             feature.append(row[4])
             T3.append(row[5])
-    return (np.array([np.array(gammaprime), np.array(T3Prime), np.array(T3)]), NewState, feature)
+            counts.append(row[3])
+    return (np.array([np.array(gammaprime), np.array(T3Prime), np.array(T3)]), np.array(NewStates), np.array(feature), np.array(counts))
 
 def constructBootingVectorsForFeature(tau3, level = 'Wiwynn Gen6 Optimized', baseCounts = np.zeros(6), baseTimes = np.zeros(6)):
     counts = np.zeros(6)
@@ -70,24 +76,25 @@ def constructBootingVectorsForFeature(tau3, level = 'Wiwynn Gen6 Optimized', bas
         res = allBootingEventsWHWQry[1]
     for i in range(len(res[1])):
         if res[2][i] == level:
-          [gammaprime, T3Prime, T3] = [res[0][0,i], res[0][1,i], res[0][2,i]]
-          if res[1][i] == 'Ready':
-              # If duration is less than tau3, move it to ready
-              if T3 < tau3:
-                  counts += np.array([0,0,0,0,0,1])
-                  times += np.array([0,0,0,0,0,max(T3 - gammaprime, 0)]) #T3 - gammaprime = T3Prime.
-              else:
-                  counts += np.array([0,1,0,0,0,0])
-                  times += np.array([0,max(tau3 - gammaprime,0),0,0,0,0])
-          elif res[1][i] == 'PoweringOn':
-              counts += np.array([0,1,0,0,0,0])
-              times += np.array([0,max(tau3 - gammaprime,0),0,0,0,0])
-          elif res[1][i] == 'Dead':
-              counts += np.array([0,0,0,0,1,0])
-              times += np.array([0,0,0,0,1.0*tau3,0])
-          elif res[1][i] == 'HumanInvestigate':
-              counts += np.array([0,0,0,1,0,0])
-              times += np.array([0,0,0,T3Prime,0,0])
+          for j in range(res[3][i]):
+            [gammaprime, T3Prime, T3] = [res[0][0,i], res[0][1,i], res[0][2,i]]
+            if res[1][i] == 'Ready':
+                # If duration is less than tau3, move it to ready
+                if T3 < tau3:
+                    counts += np.array([0,0,0,0,0,1])
+                    times += np.array([0,0,0,0,0,max(T3 - gammaprime, 0)]) #T3 - gammaprime = T3Prime.
+                else:
+                    counts += np.array([0,1,0,0,0,0])
+                    times += np.array([0,max(tau3 - gammaprime,0),0,0,0,0])
+            elif res[1][i] == 'PoweringOn':
+                counts += np.array([0,1,0,0,0,0])
+                times += np.array([0,max(tau3 - gammaprime,0),0,0,0,0])
+            elif res[1][i] == 'Dead':
+                counts += np.array([0,0,0,0,1,0])
+                times += np.array([0,0,0,0,1.0*tau3,0])
+            elif res[1][i] == 'HumanInvestigate':
+                counts += np.array([0,0,0,1,0,0])
+                times += np.array([0,0,0,T3Prime,0,0])
     times = (times + baseTimes * baseCounts) / (counts + baseCounts + 1e-9)
     counts += baseCounts
     return [counts / sum(counts), times]
