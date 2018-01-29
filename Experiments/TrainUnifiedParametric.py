@@ -67,7 +67,7 @@ def non_parametric2(t, x, rebootCost = 300.00):
 		netSavings = (savings - losses)
 		relSavings.append(netSavings)
 		if indx%10 == 0:
-			print "tau: " + "{0:.2f}".format(tau) + " savings: " + "{0:.2f}".format(savings) + " losses: " + "{0:.2f}".format(losses) + " net: " + "{0:.2f}".format(netSavings)
+			print("tau: " + "{0:.2f}".format(tau) + " savings: " + "{0:.2f}".format(savings) + " losses: " + "{0:.2f}".format(losses) + " net: " + "{0:.2f}".format(netSavings))
 	#print "Optimal threshold: " + str(taus[np.argmax(relSavings)])
 	return taus[np.argmax(relSavings)]
 
