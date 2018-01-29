@@ -59,7 +59,7 @@ class Lognormal(Base):
         return np.array([delk,dellmb])
 
     def gradient_descent(self, numIter=2001, params = np.array([1.0,1.0])):
-        for i in xrange(numIter):
+        for i in range(numIter):
             #lik = self.loglik(self.train_org,self.train_inorg,params[0],params[1],params[2])
             directn = self.grad(self.train_org,self.train_inorg,params[0],params[1])
             params2 = params + 1e-9*directn
@@ -73,11 +73,12 @@ class Lognormal(Base):
                         params2 = params1
             params = params2
             if i%100 == 0:
-                print "Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn)
-                print "\n########\n"
+                print("Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn))
+                print("\n########\n")
         [self.mu,self.sigma] = params
         self.params = params
         #return params
+
 
 #[1] http://home.iitk.ac.in/~kundu/paper160.pdf
 

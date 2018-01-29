@@ -68,11 +68,11 @@ class Weibull(Base):
             s1 = Sigmoid(6.0)
             s2 = Sigmoid(1000.0)
 
-            for i in xrange(len(x_samples)):
+            for i in range(len(x_samples)):
                 theta = np.dot(W.T,x_samples[i])
                 [k, lmb] = [s1.transformed(theta[0]), s2.transformed(theta[1])]
                 lik += self.logpdf(t[i],k,lmb)
-            for i in xrange(len(x_censored)):
+            for i in range(len(x_censored)):
                 theta = np.dot(W.T,x_censored[i])
                 [k, lmb] = [s1.transformed(theta[0]), s2.transformed(theta[1])]
                 lik += self.logsurvival(x[i],k,lmb)
@@ -83,7 +83,7 @@ class Weibull(Base):
         else:
             return sum(self.logpdf(t, k, lmb)) + sum(self.logsurvival(x, k, lmb))
 
-    def grad(self,t,x= np.array([0]),k=0.5,lmb=0.3,W=None,x_samples=None,x_censored=None):
+    def grad(self,t,x= np.array([1e-3]),k=0.5,lmb=0.3,W=None,x_samples=None,x_censored=None):
         #
         ## If there are features, calculate likelihood with the help of features.
         #
@@ -92,7 +92,7 @@ class Weibull(Base):
             s1 = Sigmoid(6.0)
             s2 = Sigmoid(1000.0)
 
-            for i in xrange(len(x_samples)):
+            for i in range(len(x_samples)):
                 theta = np.dot(W.T,x_samples[i])
                 [k, lmb] = [s1.transformed(theta[0]), s2.transformed(theta[1])]
                 deltheta = np.array([s1.grad(theta[0]), s2.grad(theta[1])]) * self.pdf_grad(t[i],k,lmb)
@@ -103,7 +103,7 @@ class Weibull(Base):
                     deltheta = np.array([s1.grad(theta[0]), s2.grad(theta[1])]) * self.survival_grad(10.0, k, lmb)
                     delW += 1/self.survival(10.0, k, lmb) * np.outer(x_samples[i], deltheta)
 
-            for i in xrange(len(x_censored)):
+            for i in range(len(x_censored)):
                 theta = np.dot(W.T,x_censored[i])
                 [k, lmb] = [s1.transformed(theta[0]), s2.transformed(theta[1])]
                 deltheta = np.array([s1.grad(theta[0]), s2.grad(theta[1])]) * self.survival_grad(x[i], k, lmb)
@@ -154,7 +154,7 @@ class Weibull(Base):
             return np.array([delk,dellmb])
 
     def gradient_descent(self, numIter=2001, params = np.array([.5,.3])):
-        for i in xrange(numIter):
+        for i in range(numIter):
             #lik = self.loglik(self.t, self.x, params[0], params[1], params, self.x_samples, self.x_censored)
             directn = self.grad(self.t, self.x, params[0], params[1], params, self.x_samples, self.x_censored)
             params2 = params + 1e-9*directn
@@ -168,15 +168,15 @@ class Weibull(Base):
                         params2 = params1
             params = params2
             if i%25 == 0:
-                print "Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn)
-                print "\n########\n"
+                print("Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn))
+                print("\n########\n")
         return params
 
-    def newtonRh(self,numIter=21, params = np.array([.1,.1])):
-        for i in xrange(numIter):
+    def newtonRh(self,numIter=21, params = np.array([.1,100])):
+        for i in range(numIter):
             directn = self.grad(self.train_org,self.train_inorg,params[0],params[1])
             if sum(abs(directn)) < 1e-5:
-                print "\nIt took: " + str(i) + " Iterations.\n Gradients - " + str(directn)
+                print("\nIt took: " + str(i) + " Iterations.\n Gradients - " + str(directn))
                 [self.k, self.lmb] = params
                 self.params = params
                 return params
@@ -184,7 +184,7 @@ class Weibull(Base):
             step = np.linalg.solve(self.hessian(self.train_org,self.train_inorg,params[0],params[1]),directn)
             params = params - step
             if min(params) < 0:
-                print "Drastic measures"
+                print("Drastic measures")
                 params = params + step # undo the effect of taking the step.
                 for alp1 in [1e-8,1e-7,1e-5,1e-3,1e-2,.1,.5,1.0]:
                     params1 = params - alp1 * step
@@ -196,7 +196,7 @@ class Weibull(Base):
                             scale = alp1
                 params = params2
             if i%10 == 0:
-                print "Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn) + "\n##\n\n"
+                print("Iteration " + str(i) + " ,objective function: " + str(lik) + " \nparams = " + str(params) + " \nGradient = " + str(directn) + "\n##\n\n")
         [self.k, self.lmb] = params
         self.params = params
         return params
@@ -231,7 +231,7 @@ class Weibull(Base):
         n = len(t)
         return n/k + sum(np.log(t)) - n*(sum(t**k*np.log(t)) + sum(x**k*np.log(x)))/(sum(x**k) + sum(t**k))
 
-    def bisection(self,a=1e-6,b=20):
+    def bisection(self,a=1e-6,b=1000):
         n=1
         while n<10000:
             c=(a+b)/2
@@ -245,6 +245,10 @@ class Weibull(Base):
 
     def optimal_threshold(self, reboot_cost):
         return self.lmb ** (self.k / (self.k - 1)) / (reboot_cost * self.k) ** (1 / (self.k - 1))
+
+    def samples(self, size = 1000):
+        return exponweib.rvs(a=1,c=self.k,scale=self.lmb,size=size)
+
 
 def generate_features(size):
     x1 = np.array([[1,1,0],[1,1,0]])
@@ -273,8 +277,8 @@ if __name__ == '__main__':
     x = np.ones(sum(t>1.5))*1.5
     t = t[t<1.5]
     W = np.array([[0.1,0.4],[0.5,0.3],[0.2,0.7]])
-    print str(w.loglik(t,x,W=W,x_censored=x_censored,x_samples=x_samples))
-    print str(w.grad(t,x,W=W,x_censored=x_censored,x_samples=x_samples))
+    print(str(w.loglik(t,x,W=W,x_censored=x_censored,x_samples=x_samples)))
+    print(str(w.grad(t,x,W=W,x_censored=x_censored,x_samples=x_samples)))
     w.gradient_descent(params=W)
 
 

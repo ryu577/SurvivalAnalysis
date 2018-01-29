@@ -47,7 +47,7 @@ class Lomax(Base):
         delk = n/k - sum(np.log(1+lmb*t)) - sum(np.log(1+lmb*x))
         dellmb = n/lmb -(k+1) * sum(t/(1+lmb*t)) -k*sum(x/(1+lmb*x))
         return np.array([delk,dellmb])
-    
+
     def numerical_grad(self,t,x,k=None,lmb=None):
         if k is None or lmb is None:
             k = self.k
@@ -80,7 +80,7 @@ class Lomax(Base):
         return hess
 
     def gradient_descent(self,numIter=2001, params = np.array([.5,.3])):
-        for i in xrange(numIter):
+        for i in range(numIter):
             lik = self.loglik(self.train_org,self.train_inorg,params[0],params[1])
             directn = self.grad(self.train_org,self.train_inorg,params[0],params[1])
             params2 = params
@@ -98,7 +98,7 @@ class Lomax(Base):
         return params
 
     def newtonRh(self, numIter=101, params = np.array([.1,.1])):
-        for i in xrange(numIter):
+        for i in range(numIter):
             directn = self.grad(self.train_org,self.train_inorg,params[0],params[1])
             if sum(abs(directn)) < 1e-5:
                 print("\nIt took: " + str(i) + " Iterations.\n Gradients - " + str(directn))
@@ -127,7 +127,7 @@ class Lomax(Base):
         self.params = params
         return params
 
-    def optimalWaitThreshold(Cint, k=None, lmb=None):
+    def optimalWaitThreshold(self, Cint, k=None, lmb=None):
         if k is None or lmb is None:
             k = self.k
             lmb = self.lmb
