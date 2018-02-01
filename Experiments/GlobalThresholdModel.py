@@ -8,8 +8,8 @@ import getpass
 
 kusto_cluster = 'https://vmainsight.kusto.windows.net'
 # In case you want to authenticate with AAD application.
-pwd = getpass.getpass()
-kusto_client = KustoClient(kusto_cluster=kusto_cluster, username = 'ropandey@microsoft.com', password = pwd)
+passwd = getpass.getpass()
+kusto_client = KustoClient(kusto_cluster=kusto_cluster, username = 'ropandey@microsoft.com', password = passwd)
 kusto_database = 'vmadb'
 
 def executeQuery(query):
@@ -214,7 +214,7 @@ gammaquery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeSt
 "| project additionalt + DurationInSeconds - 900, ContainerCount")
 gammaquery = [gammaquery, None]
 
-pxeBootOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
+pxeBootOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > ago(20d)\n" +
 "| where OldState in (\"Booting\") and NewState == \"Ready\"\n" +
 "| summarize by DurationInSeconds, ContainerCount, NodeId, PreciseTimeStamp = bin(PreciseTimeStamp, 1s), Cluster\n" +
 "| join kind = inner (\n" +
@@ -236,7 +236,7 @@ pxeBootOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and Prec
 pxeBootOrganicQuery = [pxeBootOrganicQuery, None]
 
 ## Note - this is not PXE to powering on durations. But it doesn't matter since we only use the count.
-pxeBootCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" + 
+pxeBootCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > ago(20d)\n" + 
 "| where OldState == \"Booting\" and NewState in (\"PoweringOn\", \"Dead\") \n" +
 "| summarize by DurationInSeconds, ContainerCount, NodeId, PreciseTimeStamp = bin(PreciseTimeStamp, 1s), Cluster \n" +
 "| join kind = inner ( \n" +
@@ -253,7 +253,7 @@ pxeBootCensoredQuery = ("NodeStateTransitions | where ContainerCount > 0 and Pre
 "| project DurationInSeconds, ContainerCount")
 pxeBootCensoredQuery = [pxeBootCensoredQuery, None]
 
-powOnOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > datetime(11-19-2017)\n" +
+powOnOrganicQuery = ("NodeStateTransitions | where ContainerCount > 0 and PreciseTimeStamp > ago(20d)\n" +
 "| where OldState in (\"PoweringOn\", \"Recovering\") and NewState == \"Ready\"\n" +
 "| summarize by DurationInSeconds, ContainerCount, NodeId, PreciseTimeStamp = bin(PreciseTimeStamp, 1s), Cluster\n" +
 "| project DurationInSeconds, ContainerCount")

@@ -13,7 +13,7 @@ import time
 Constructs the matrices and calculates costs corresponding to a range of thresholds.
 >> np.savetxt('p.csv', probs, delimiter=',')
 '''
-def constructFullMatricesByHW(level = 'Wiwynn Azure Gen5 1 Compute C1042H', plot=False):
+def constructFullMatricesByHW(level='Wiwynn Azure Gen5 1 Compute C1042H', plot=False):
   ## First get global vectors.
   [powOnProbsBase, powOnTimesBase] = populateRawVecs(powOnAllTrnstns[0], {'PoweringOn'})
   [powOnProbs, powOnTimes] = populateRawVecsForFeature(powOnAllTrnstnsWHWQry[0], {'PoweringOn'}, level, powOnProbsBase * 1.0, powOnTimesBase)
@@ -22,7 +22,8 @@ def constructFullMatricesByHW(level = 'Wiwynn Azure Gen5 1 Compute C1042H', plot
   [deadProbsBase, deadTimesBase] = populateRawVecs(deadAllTranstns[0], {'Dead'})
   [deadProbs, deadTimes] = populateRawVecsForFeature(deadAllTrnstnsWHWQry[0], {'Dead'}, level, deadProbsBase * 1.0, deadTimesBase)
   hiProbs = np.array([0,0,0,0,0,1])
-  hiTimes = np.array([0,0,0,0,0,getHiCost(hiCostQuery[0])*60]) #####TODO!!
+  hiTimesBase = getHiCost(hiCostQuery[0])
+  hiTimes = np.array([0,0,0,0,0,gethiCostQueryByFeature(hiCostWHWQry[0], level, 1.0, hiTimesBase)*60])
   [readyProbsBase, readyTimesBase] = populateRawVecs(readyQuery[0], {'Ready'})
   [readyProbs, readyTimes] = populateRawVecsForFeature(readyTransitionsWHWQry[0], {'Dead'}, level, readyProbsBase * 1.0, deadTimesBase)
   bootingWithTau = []
@@ -45,6 +46,16 @@ def constructFullMatricesByHW(level = 'Wiwynn Azure Gen5 1 Compute C1042H', plot
     plt.close(fig)
   return np.arange(300, 940, 10)[np.argmin(bootingWithTau)]
 
+def gethiCostQueryByFeature(query, level='Wiwynn Azure Gen5 1 Compute C1042H', baseCount = 1, baseTime = 500):
+  hwquery = query + " | where Hardware_Model == \"" + level + "\""
+  response = kusto_client.execute(kusto_database, hwquery)
+  data = response.fetchall();
+  time.sleep(0.6)
+  for row in data:
+    cnt = float(row[2])
+    featureTime = float(row[1])
+    return (baseCount * baseTime + cnt * featureTime)/(baseCount + cnt)
+  return baseTime
 
 def executeBootingQueryByFeture(query):
     response = kusto_client.execute(kusto_database, query)
@@ -65,6 +76,7 @@ def executeBootingQueryByFeture(query):
             T3.append(row[5])
             counts.append(row[3])
     return (np.array([np.array(gammaprime), np.array(T3Prime), np.array(T3)]), np.array(NewStates), np.array(feature), np.array(counts))
+
 
 def constructBootingVectorsForFeature(tau3, level = 'Wiwynn Gen6 Optimized', baseCounts = np.zeros(6), baseTimes = np.zeros(6)):
     counts = np.zeros(6)
